@@ -24,6 +24,9 @@
 - `M_FN_Character_MASTER`
 - `M_MASTER_AnimeShading`
 - `M_Apollo_Terrain_Basic`
+- `M_SkyDome`
+- `M_SkyDomeWild`
+- `M_Apollo_SkyDome_Master`
 
 ## Other Ripped Materials
 - `Athena_Button_Solo_Master`
