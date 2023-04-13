@@ -23,6 +23,7 @@
 - `M_Creative_4Layers`
 - `M_FN_Character_MASTER`
 - `M_MASTER_AnimeShading`
+- `M_Apollo_Terrain_Basic`
 
 ## Other Ripped Materials
 - `Athena_Button_Solo_Master`
