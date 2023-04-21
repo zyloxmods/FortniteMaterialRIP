@@ -4,7 +4,7 @@
 
 #include "HttpModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Factories/TextureFactory.h"
+#include "Importers/TextureImporters.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -19,90 +19,38 @@ bool FRemoteAssetDownloader::MakeTexture(const FString& Path, UTexture2D*& OutTe
 	HttpRequest->SetHeader("content-type", "image/png");
 	HttpRequest->SetVerb(TEXT("GET"));
 
-	TSharedPtr<IHttpResponse> HttpResponse = FRemoteUtilities::ExecuteRequestSync(HttpRequest);
+	const TSharedPtr<IHttpResponse> HttpResponse = FRemoteUtilities::ExecuteRequestSync(HttpRequest);
+	if (!HttpResponse.IsValid()) return false;
 
-	if (HttpResponse.IsValid()) {
-		FString PackagePath;
-		FString AssetName;
-		Path.Split(".", &PackagePath, &AssetName);
+	const TArray<uint8> Data = HttpResponse->GetContent();
+
+	FString PackagePath;
+	FString AssetName;
+	Path.Split(".", &PackagePath, &AssetName);
+
+	const TSharedRef<IHttpRequest> NewRequest = HttpModule->CreateRequest();
+	NewRequest->SetURL("https://fortnitecentral.genxgames.gg/api/v1/export?raw=true&path=" + Path);
+	NewRequest->SetVerb(TEXT("GET"));
+
+	const TSharedPtr<IHttpResponse> NewResponse = FRemoteUtilities::ExecuteRequestSync(NewRequest);
+	if (!NewResponse.IsValid()) return false;
+
+	const TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(NewResponse->GetContentAsString());
+	TSharedPtr<FJsonObject> JsonObject;
+	if (FJsonSerializer::Deserialize(JsonReader, JsonObject)) {
 		UPackage* Package = FAssetUtilities::CreateAssetPackage(PackagePath);
+		const UTextureImporters* Importer = new UTextureImporters(AssetName, Path, JsonObject, Package, nullptr);
 
-		UTextureFactory* TextureFactory = NewObject<UTextureFactory>();
-		TextureFactory->AddToRoot();
-		TextureFactory->SuppressImportOverwriteDialog();
+		UTexture* Texture;
+		Importer->ImportTexture2D(Texture, Data, JsonObject->GetArrayField("jsonOutput")[0]->AsObject()->GetObjectField("Properties"));
 
-		TArray<uint8> Data = HttpResponse->GetContent();
-		const uint8* TextureData = Data.GetData();
-		OutTexture = Cast<UTexture2D>(TextureFactory->FactoryCreateBinary(UTexture2D::StaticClass(), Package, FName(AssetName), RF_Standalone | RF_Public, nullptr,
-		                                                                  *FPaths::GetExtension(AssetName + ".png").ToLower(), TextureData, TextureData + Data.Num(), GWarn));
+		FAssetRegistryModule::AssetCreated(Texture);
+		if (!Texture->MarkPackageDirty()) return false;
+		Package->SetDirtyFlag(true);
+		Texture->PostEditChange();
+		Texture->AddToRoot();
 
-		if (OutTexture != nullptr) {
-			const TSharedRef<IHttpRequest> NewRequest = HttpModule->CreateRequest();
-			NewRequest->SetURL("https://fortnitecentral.genxgames.gg/api/v1/export?raw=true&path=" + Path);
-			NewRequest->SetVerb(TEXT("GET"));
-
-			TSharedPtr<IHttpResponse> NewResponse = FRemoteUtilities::ExecuteRequestSync(NewRequest);
-
-			if (HttpResponse.IsValid()) {
-				const TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(NewResponse->GetContentAsString());
-				TSharedPtr<FJsonObject> JsonObject;
-				if (FJsonSerializer::Deserialize(JsonReader, JsonObject)) {
-					const TSharedPtr<FJsonObject> TextureJson = JsonObject->GetArrayField("jsonOutput")[0]->AsObject();
-
-					FString AddressX;
-					if (TextureJson->GetObjectField("Properties")->TryGetStringField("AddressX", AddressX)) {
-						OutTexture->AddressX = static_cast<TextureAddress>(FAssetUtilities::GetEnumOfType("/Script/Engine.TextureAddress")->GetValueByNameString(AddressX));
-					}
-
-					FString AddressY;
-					if (TextureJson->GetObjectField("Properties")->TryGetStringField("AddressY", AddressY)) {
-						OutTexture->AddressY = static_cast<TextureAddress>(FAssetUtilities::GetEnumOfType("/Script/Engine.TextureAddress")->GetValueByNameString(AddressY));
-					}
-
-					FString LightingGuid;
-					if (TextureJson->GetObjectField("Properties")->TryGetStringField("LightingGuid", LightingGuid)) OutTexture->SetLightingGuid(FGuid(LightingGuid));
-
-					FString CompressionSettings;
-					if (TextureJson->GetObjectField("Properties")->TryGetStringField("CompressionSettings", CompressionSettings)) {
-						OutTexture->CompressionSettings = static_cast<TextureCompressionSettings>(FAssetUtilities::GetEnumOfType("/Script/Engine.TextureCompressionSettings")->GetValueByNameString(CompressionSettings));
-					}
-
-					FString Filter;
-					if (TextureJson->GetObjectField("Properties")->TryGetStringField("Filter", Filter)) {
-						OutTexture->Filter = static_cast<TextureFilter>(FAssetUtilities::GetEnumOfType("/Script/Engine.TextureFilter")->GetValueByNameString(Filter));
-					}
-
-					FString LODGroup;
-					if (TextureJson->GetObjectField("Properties")->TryGetStringField("LODGroup", LODGroup)) {
-						OutTexture->LODGroup = static_cast<TextureGroup>(FAssetUtilities::GetEnumOfType("/Script/Engine.TextureGroup")->GetValueByNameString(LODGroup));
-					}
-
-					bool SRGB;
-					if (TextureJson->GetObjectField("Properties")->TryGetBoolField("SRGB", SRGB)) OutTexture->SRGB = SRGB;
-
-					bool NeverStream;
-					if (TextureJson->GetObjectField("Properties")->TryGetBoolField("NeverStream", NeverStream)) OutTexture->NeverStream = NeverStream;
-
-					FTexturePlatformData* PlatformData = OutTexture->GetPlatformData();
-
-					int SizeX;
-					if (TextureJson->TryGetNumberField("SizeX", SizeX)) PlatformData->SizeX = SizeX;
-					int SizeY;
-					if (TextureJson->TryGetNumberField("SizeY", SizeY)) PlatformData->SizeY = SizeY;
-					uint32 PackedData;
-					if (TextureJson->TryGetNumberField("PackedData", PackedData)) PlatformData->PackedData = PackedData;
-					FString PixelFormat;
-					if (TextureJson->TryGetStringField("PixelFormat", PixelFormat)) PlatformData->PixelFormat = static_cast<EPixelFormat>(OutTexture->GetPixelFormatEnum()->GetValueByNameString(PixelFormat));
-
-					FAssetRegistryModule::AssetCreated(OutTexture);
-					if (!OutTexture->MarkPackageDirty()) return false;
-					Package->SetDirtyFlag(true);
-					OutTexture->PostEditChange();
-					OutTexture->AddToRoot();
-					// SavePackageHelper(OutTexture->GetPackage(), *OutTexture->GetName());
-				}
-			}
-		}
+		OutTexture = Cast<UTexture2D>(Texture);
 	}
 
 	return true;

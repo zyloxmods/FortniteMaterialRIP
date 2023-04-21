@@ -8,19 +8,21 @@ public class JsonAsAsset : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(
-			new string[]
+		PublicDefinitions.Add((Target.Version.BranchName ?? "UE").StartsWith("++Pinnacle") ? "IS_PINNACLE=1" : "IS_PINNACLE=0");
+
+		PublicDependencyModuleNames.AddRange(new string[]
 			{
 				"Core",
 				"Json",
 				"JsonUtilities",
 				"UMG",
-				"HTTP"
+				"RenderCore",
+				"HTTP",
+				"DeveloperSettings"
 			}
 		);
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
+		PrivateDependencyModuleNames.AddRange(new string[]
 			{
 				"Projects",
 				"InputCore",
@@ -31,7 +33,12 @@ public class JsonAsAsset : ModuleRules
 				"Slate",
 				"SlateCore",
 				"AnimationDataController",
-				"MaterialEditor"
+				"MaterialEditor",
+				"ImageWriteQueue",
+				"Landscape",
+				"AssetTools",
+				"EditorStyle",
+				"Settings"
 			}
 		);
 

@@ -2,8 +2,7 @@
 
 #pragma once
 
-class FAssetUtilities
-{
+class FAssetUtilities {
 public:
 	static UPackage* CreateAssetPackage(const FString& FullPath);
 	static UPackage* CreateAssetPackage(const FString& Name, const FString& OutputPath);
@@ -17,6 +16,4 @@ public:
 	static UObject* GetSelectedAsset();
 
 	static FRichCurveKey ObjectToRichCurveKey(const TSharedPtr<FJsonObject>& Object);
-
-	static UEnum* GetEnumOfType(const FString& ScriptPath);
 };

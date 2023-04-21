@@ -3,11 +3,13 @@
 #pragma once
 
 #include "Importer.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 class UMaterialFunctionImporter : public IImporter {
 public:
-	UMaterialFunctionImporter(const FString& FileName, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects):
-		IImporter(FileName, JsonObject, Package, OutermostPkg, AllJsonObjects) {
+	UMaterialFunctionImporter(const FString& FileName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects):
+		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects) {
 	}
 
 	virtual bool ImportData() override;
@@ -47,9 +49,11 @@ protected:
 		"MaterialExpressionMin",
 		"MaterialExpressionNamedRerouteUsage",
 		"MaterialExpressionSine",
+		"MaterialExpressionSign",
 		"MaterialExpressionSmoothStep",
 		"MaterialExpressionAppendVector",
 		"MaterialExpressionDivide",
+		"MaterialExpressionSkyLightEnvMapSample",
 		"MaterialExpressionDistance",
 		"MaterialExpressionStaticBool",
 		"MaterialExpressionScreenPosition",
@@ -58,6 +62,7 @@ protected:
 		"MaterialExpressionDotProduct",
 		"MaterialExpressionStaticSwitch",
 		"MaterialExpressionPower",
+		"MaterialExpressionVirtualTextureFeatureSwitch",
 		"MaterialExpressionRound",
 		"MaterialExpressionTextureSampleParameter2D",
 		"MaterialExpressionFloor",
@@ -69,6 +74,8 @@ protected:
 		"MaterialExpressionScreenPosition",
 		"MaterialExpressionViewSize",
 		"MaterialExpressionActorPositionWS",
+		"MaterialExpressionRuntimeVirtualTextureSample",
+		"MaterialExpressionRuntimeVirtualTextureSampleParameter",
 		"MaterialExpressionTransformPosition",
 		"MaterialExpressionObjectRadius",
 		"MaterialExpressionObjectPositionWS",
@@ -167,7 +174,14 @@ protected:
 		"MaterialExpressionArctangent2Fast",
 		"MaterialExpressionArctangentFast",
 		"MaterialExpressionArctangent2",
-		"MaterialExpressionArctangent"
+		"MaterialExpressionArctangent",
+		"MaterialExpressionSceneTexture",
+		"MaterialExpressionLandscapeGrassOutput",
+		"MaterialExpressionLandscapeLayerSample",
+		"MaterialExpressionLandscapeLayerCoords",
+		"MaterialExpressionLandscapeLayerSwitch",
+		"MaterialExpressionLandscapeLayerBlend",
+		"MaterialExpressionLandscapeLayerWeight"
 	};
 
 	inline static TArray<FString> IgnoredTypes = {
@@ -209,6 +223,7 @@ protected:
 	void AddExpressions(UObject* Parent, TArray<FName>& ExpressionNames, TMap<FName, FImportData>& Exports, TMap<FName, UMaterialExpression*>& CreatedExpressionMap, bool bCheckOuter = false, bool bSubgraph = false);
 	void AddComments(UObject* Parent, const TSharedPtr<FJsonObject>& Json, TMap<FName, FImportData>& Exports);
 	void AddGenerics(UObject* Parent, UMaterialExpression* Expression, const TSharedPtr<FJsonObject>& Json);
+	void AppendNotification(const FText& Text, SNotificationItem::ECompletionState CompletionState);
 
 	UMaterialExpression* CreateEmptyExpression(UObject* Parent, FName Name, FName Type) const;
 
